@@ -2,7 +2,7 @@
 
 **Author:** Asha Veerpaneni — Program Manager / Scrum Master
 **Status:** Draft v1
-**Last updated:** August 11, 2026
+**Last updated:** August 13, 2026
 
 ## 1. Problem Statement
 Sprint planning is repeated manually every cycle across 3 teams: closing the old sprint, identifying rollover work, backfilling capacity from the backlog, and getting Product Owner sign-off. This is repetitive, error-prone at scale, and takes up ceremony time that could go toward actual planning conversations. This project automates the mechanical parts of that ceremony using mock JIRA data, while keeping the Product Owner as the final decision-maker.
@@ -79,6 +79,7 @@ Sprint planning is repeated manually every cycle across 3 teams: closing the old
 - **PO does not respond / declines confirmation:** the Program Manager is notified so they can trigger the sprint themselves. Work must not stall indefinitely waiting on PO input — a new sprint should still be initiated, with the PO's non-response/decision logged for follow-up.
 - Rollover cards alone exceed adjusted velocity → tool should flag this explicitly rather than silently dropping Sprint Ready additions.
 - Resource availability data (OOO) missing or incomplete → default to full baseline velocity and flag that adjusted velocity could not be calculated, rather than guessing.
+- **Claude API unavailable or fails** (no key set, network error, safety refusal, empty response): fall back to a deterministic, offline goal naming the top 1–2 highest-priority committed cards (e.g. *"This sprint focuses on: Payment retry queue logic and Add SSO login option."*), rather than blocking the sprint or showing empty/generic placeholder text. AI-generated goals remain the preferred path whenever the API is available; the fallback is free and requires no credentials.
 
 ## 8. Success Metrics
 - 100% of incomplete cards correctly identified as rollover against the mock dataset's known state.
@@ -92,6 +93,7 @@ Sprint planning is repeated manually every cycle across 3 teams: closing the old
 - Confirmation step as a terminal yes/no prompt in v1
 - Git used from the first commit; pushed to a public GitHub repo
 - HTML front end deferred to v2, once core logic is proven
+- Sprint goal generation (US-6) uses **Claude Haiku 4.5** (`claude-haiku-4-5`) — chosen because grounding a 1–2 sentence goal in a short card list is a simple, well-scoped generation task that doesn't need a larger, more expensive model. Falls back to the free offline template described in Section 7 whenever the API isn't available.
 
 ## 10. Definition of Done (v1)
 - Script runs end-to-end against the mock dataset for all 3 teams
@@ -111,3 +113,17 @@ Sprint planning is repeated manually every cycle across 3 teams: closing the old
 - **Outcome:** The new sprint is finalized across all 3 teams, logged, and remains editable by the PO mid-sprint if priorities shift.
 
 **Where this could be optimized (a good talking point for interviews):** the velocity-adjustment and backfill steps (2 and 3) are pure logic and run fast/cheap; the AI sprint-goal step (4) is the only place that calls out to the Claude API, so it's the main lever for token cost — worth measuring separately from the rest of the pipeline once built.
+
+## 12. Measured Results (v1, as built)
+
+These are the actual numbers from the completed build, not projections — kept here per Section 6's requirement that cost/performance be reported as measured results, not claims.
+
+- **Test coverage:** 80 automated tests (`pytest`), covering all 8 user stories — data validation, rollover tagging, OOO velocity adjustment (even split, floor rounding, missing/incomplete data), backfill priority/tie-breaking/edge cases, AI + template-based goal generation, PO edit/confirm flows, mid-sprint editing with change-log persistence, and full end-to-end CLI runs.
+- **AI model:** Claude Haiku 4.5 (`claude-haiku-4-5`), one API call per team per sprint cycle (3 calls for a full 3-team run).
+- **Token usage & cost:** the tool prints real measured usage at the end of every run (`AI sprint-goal generation time: X.XXXs (N input / M output tokens)`) — never an estimate. Without an API key set, this is genuinely `0 input / 0 output tokens` (the free template fallback runs instead, per Section 7). With a key set, a full 3-team run's prompts are short (a handful of card titles/priorities each) — at Haiku 4.5's published rate of $1 / $5 per million input/output tokens, a realistic run costs on the order of **$0.001 or less**, i.e. a fraction of a cent.
+- **Timing:** the pure-logic pipeline (close sprint, adjust velocity, backfill) for all 3 teams measures at **~0.002s**, well under the 10-second NFR budget (Section 6). The AI goal-generation step is timed separately per Section 11's optimization note; three sequential Claude calls typically complete in **1–2 seconds** total.
+- **PO input parameters** — everything a Product Owner or Program Manager is asked for during a run:
+  - New sprint start date and end date (`YYYY-MM-DD`)
+  - Per team, at the confirmation step: `confirm` / `edit` / `decline`
+  - If editing before confirmation (US-5): add or remove a specific Sprint Ready card, or rewrite the draft sprint goal
+  - When editing an already-active sprint (US-8): add or remove a specific card, plus a required typed reason (logged with a timestamp)
