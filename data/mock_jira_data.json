@@ -1,0 +1,69 @@
+{
+  "teams": [
+    {
+      "team_id": "team_alpha",
+      "team_name": "Team Alpha",
+      "velocity": 32,
+      "product_owner": "Dana Lee"
+    },
+    {
+      "team_id": "team_bravo",
+      "team_name": "Team Bravo",
+      "velocity": 24,
+      "product_owner": "Marcus Cho"
+    },
+    {
+      "team_id": "team_charlie",
+      "team_name": "Team Charlie",
+      "velocity": 18,
+      "product_owner": "Priya Nair"
+    }
+  ],
+
+  "sprints": [
+    {
+      "sprint_id": "sprint_12",
+      "team_id": "team_alpha",
+      "status": "active",
+      "start_date": "2026-07-28",
+      "end_date": "2026-08-11",
+      "sprint_goal": "Ship the account-settings redesign and finish payment-retry logic"
+    },
+    {
+      "sprint_id": "sprint_09",
+      "team_id": "team_bravo",
+      "status": "active",
+      "start_date": "2026-07-28",
+      "end_date": "2026-08-11",
+      "sprint_goal": "Stabilize the notifications service and reduce P1 bug backlog"
+    },
+    {
+      "sprint_id": "sprint_15",
+      "team_id": "team_charlie",
+      "status": "active",
+      "start_date": "2026-07-28",
+      "end_date": "2026-08-11",
+      "sprint_goal": "Migrate reporting dashboard to the new data pipeline"
+    }
+  ],
+
+  "cards": [
+    { "card_id": "ALPHA-201", "team_id": "team_alpha", "sprint_id": "sprint_12", "title": "Rebuild account-settings UI", "priority": "high", "story_points": 8, "status": "done" },
+    { "card_id": "ALPHA-202", "team_id": "team_alpha", "sprint_id": "sprint_12", "title": "Payment retry queue logic", "priority": "high", "story_points": 13, "status": "in_progress" },
+    { "card_id": "ALPHA-203", "team_id": "team_alpha", "sprint_id": "sprint_12", "title": "Fix avatar upload bug", "priority": "medium", "story_points": 3, "status": "done" },
+    { "card_id": "ALPHA-204", "team_id": "team_alpha", "sprint_id": null, "title": "Add SSO login option", "priority": "high", "story_points": 8, "status": "sprint_ready" },
+    { "card_id": "ALPHA-205", "team_id": "team_alpha", "sprint_id": null, "title": "Refactor settings API endpoints", "priority": "medium", "story_points": 5, "status": "sprint_ready" },
+    { "card_id": "ALPHA-206", "team_id": "team_alpha", "sprint_id": null, "title": "Dark mode for account pages", "priority": "low", "story_points": 3, "status": "backlog" },
+
+    { "card_id": "BRAVO-101", "team_id": "team_bravo", "sprint_id": "sprint_09", "title": "Fix duplicate push notifications", "priority": "high", "story_points": 5, "status": "done" },
+    { "card_id": "BRAVO-102", "team_id": "team_bravo", "sprint_id": "sprint_09", "title": "Notification service memory leak", "priority": "high", "story_points": 8, "status": "in_progress" },
+    { "card_id": "BRAVO-103", "team_id": "team_bravo", "sprint_id": "sprint_09", "title": "Email digest formatting bug", "priority": "medium", "story_points": 3, "status": "in_progress" },
+    { "card_id": "BRAVO-104", "team_id": "team_bravo", "sprint_id": null, "title": "Add SMS notification channel", "priority": "high", "story_points": 8, "status": "sprint_ready" },
+    { "card_id": "BRAVO-105", "team_id": "team_bravo", "sprint_id": null, "title": "Notification preferences page", "priority": "medium", "story_points": 5, "status": "sprint_ready" },
+
+    { "card_id": "CHAR-301", "team_id": "team_charlie", "sprint_id": "sprint_15", "title": "Connect dashboard to new pipeline", "priority": "high", "story_points": 8, "status": "in_progress" },
+    { "card_id": "CHAR-302", "team_id": "team_charlie", "sprint_id": "sprint_15", "title": "Deprecate legacy reporting job", "priority": "medium", "story_points": 5, "status": "done" },
+    { "card_id": "CHAR-303", "team_id": "team_charlie", "sprint_id": null, "title": "Add export-to-CSV feature", "priority": "high", "story_points": 5, "status": "sprint_ready" },
+    { "card_id": "CHAR-304", "team_id": "team_charlie", "sprint_id": null, "title": "Rebuild filters UI", "priority": "low", "story_points": 3, "status": "backlog" }
+  ]
+}
