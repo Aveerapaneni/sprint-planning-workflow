@@ -8,7 +8,7 @@ from pathlib import Path
 
 from .backfill import backfill_sprint
 from .data_loader import DEFAULT_DATA_PATH, load_data
-from .goal_generation import GoalGenerationError, generate_sprint_goal
+from .goal_generation import GoalGenerationError, generate_sprint_goal, generate_template_goal
 from .mid_sprint_edit import run_edit_mode
 from .models import Sprint, Team
 from .prompts import (
@@ -125,9 +125,10 @@ def run(
             total_input_tokens += gen.input_tokens
             total_output_tokens += gen.output_tokens
         except GoalGenerationError as exc:
+            fallback_goal = generate_template_goal(result.selected_cards)
             print(f"Could not generate AI sprint goal for {team.team_name}: {exc}")
-            print("  Falling back to placeholder goal.\n")
-            draft_goals[team.team_id] = DRAFT_GOAL_PLACEHOLDER
+            print(f"  Falling back to a template-based goal: {fallback_goal}\n")
+            draft_goals[team.team_id] = fallback_goal
     ai_generation_time = time.perf_counter() - ai_start
 
     # US-4 & US-5: present each team's proposal, allow PO edits, require confirmation.

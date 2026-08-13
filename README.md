@@ -49,8 +49,12 @@ Running `python3 main.py` opens a top-level menu: **`[n]`ew sprint cycle**
    the specific rollover + backfilled cards, asking for a 1–2 sentence goal
    grounded in their actual theme, not a title recap. If the call fails for
    any reason (no API key, network error, refusal, empty response), the
-   tool logs why and falls back to a labeled placeholder — a failed AI call
-   never crashes the run.
+   tool logs why and falls back to a **template-based goal** instead — a
+   free, offline, deterministic sentence naming the top 1–2 highest-priority
+   committed cards (e.g. *"This sprint focuses on: Payment retry queue logic
+   and Add SSO login option."*). Not as natural as Claude's version, but
+   still grounded in the real sprint content rather than generic filler — a
+   failed AI call never crashes the run or degrades to an empty placeholder.
 6. **Summarize & review** — prints each team's proposed cards, draft goal,
    and points vs. baseline/adjusted velocity. The PO can `[c]`onfirm as-is,
    `[e]`dit — add or remove Sprint Ready cards, or rewrite the draft goal,
@@ -79,8 +83,9 @@ Edge cases handled without crashing (PRD Section 7):
 - Missing/incomplete OOO data for a team → falls back to full baseline
   velocity, flagged in the summary rather than guessed.
 - Claude API call fails or is unavailable (no key, network error, refusal,
-  empty response) → falls back to the placeholder goal, logged per team,
-  rather than crashing the run.
+  empty response) → falls back to a template-based goal grounded in the
+  actual top-priority cards, logged per team, rather than crashing the run
+  or showing generic filler.
 - No active sprints to edit (US-8, nothing finalized yet, or the state file
   is missing) → tool says so and exits, rather than erroring.
 - A mid-sprint add/remove submitted with a blank reason → rejected with a
@@ -135,8 +140,9 @@ export ANTHROPIC_API_KEY=sk-ant-...
 ```
 
 If unset, or the API call fails for any reason, the tool falls back to a
-labeled placeholder goal for that team and keeps running — the rest of the
-pipeline is stdlib-only and works with no key at all.
+free, template-based goal for that team (grounded in its real top-priority
+cards) and keeps running — the rest of the pipeline is stdlib-only and
+works with no key at all.
 
 ```bash
 python3 main.py
@@ -156,15 +162,16 @@ python3 -m pip install pytest anthropic
 python3 -m pytest -q
 ```
 
-74 tests cover data validation, rollover tagging, OOO velocity adjustment
+80 tests cover data validation, rollover tagging, OOO velocity adjustment
 (even split, floor rounding, missing/incomplete data), backfill priority/
 tie-break/edge-case logic, AI goal generation (prompt construction, success,
 refusal, empty response, missing credentials — via a mocked `anthropic`
-module, no real API calls or key required), proposal add/remove/goal
-editing, mid-sprint state persistence and editing (add/remove/reason
-validation/change-log round-tripping), summary content, and full
-end-to-end CLI runs (including input re-prompting on bad dates and the PO
-edit-then-confirm flow).
+module, no real API calls or key required), the template-based fallback
+goal (priority ordering, tie-breaking, pluralization, zero/one/many-card
+cases), proposal add/remove/goal editing, mid-sprint state persistence and
+editing (add/remove/reason validation/change-log round-tripping), summary
+content, and full end-to-end CLI runs (including input re-prompting on bad
+dates and the PO edit-then-confirm flow).
 
 ## Performance
 
@@ -193,6 +200,12 @@ AI sprint-goal generation time: 0.945s (0 input / 0 output tokens)
 ```
 
 (0 tokens above because no `ANTHROPIC_API_KEY` was set for that run — the
-call failed cleanly and fell back to the placeholder goal, per the edge
-case handling above. With a key set, this line reports actual `usage.input_tokens`
-/ `usage.output_tokens` summed across all 3 teams' calls.)
+call failed cleanly and fell back to the free template-based goal, per the
+edge case handling above, so **nothing was spent**. With a key set, this
+line reports actual `usage.input_tokens` / `usage.output_tokens` summed
+across all 3 teams' calls — at Haiku 4.5 rates, a realistic full run costs
+a fraction of a cent.)
+
+If you'd rather not use the API at all, that's a fully supported mode —
+just don't set `ANTHROPIC_API_KEY`. Every run still produces a real,
+grounded sprint goal via the template fallback, at zero cost.

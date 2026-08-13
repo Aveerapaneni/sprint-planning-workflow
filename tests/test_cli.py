@@ -69,7 +69,9 @@ def test_ai_goal_generation_falls_back_without_api_key(monkeypatch, capsys, tmp_
     run(MOCK_DATA_PATH, tmp_path / "active_sprints_state.json")
 
     out = capsys.readouterr().out
-    assert "Falling back to placeholder goal." in out
+    assert "Falling back to a template-based goal:" in out
+    # Grounded in the actual top-priority cards, not a generic placeholder.
+    assert "This sprint focuses on: Payment retry queue logic and Add SSO login option." in out
     assert "AI sprint-goal generation time:" in out
     # No credentials -> no tokens spent.
     assert "0 input / 0 output tokens" in out

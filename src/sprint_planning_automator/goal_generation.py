@@ -1,10 +1,12 @@
-"""US-6: generate a sprint goal grounded in the actual selected cards via Claude."""
+"""US-6: generate a sprint goal grounded in the actual selected cards via Claude,
+with a deterministic, offline, cost-free template fallback for when that call
+isn't available (no API key, network error, refusal, etc.)."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .models import Card, Team
+from .models import PRIORITY_ORDER, Card, Team
 
 MODEL = "claude-haiku-4-5"
 MAX_TOKENS = 200
@@ -76,4 +78,28 @@ def generate_sprint_goal(team: Team, cards: list[Card]) -> GoalGenerationResult:
         goal=text,
         input_tokens=response.usage.input_tokens,
         output_tokens=response.usage.output_tokens,
+    )
+
+
+def generate_template_goal(cards: list[Card]) -> str:
+    """Deterministic, no-API fallback: names the top 1-2 highest-priority cards
+    (ties broken by original order, same as the backfill priority sort) rather
+    than a generic placeholder. Not as natural as the AI-generated goal, but
+    free, offline, and still grounded in the actual sprint content."""
+    if not cards:
+        return "No cards committed to this sprint yet."
+
+    ordered = sorted(cards, key=lambda c: PRIORITY_ORDER[c.priority])
+    titles = [c.title for c in ordered]
+
+    if len(titles) == 1:
+        return f"This sprint focuses on: {titles[0]}."
+    if len(titles) == 2:
+        return f"This sprint focuses on: {titles[0]} and {titles[1]}."
+
+    remaining = len(titles) - 2
+    card_word = "card" if remaining == 1 else "cards"
+    return (
+        f"This sprint focuses on: {titles[0]} and {titles[1]} "
+        f"(plus {remaining} more {card_word})."
     )

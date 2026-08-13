@@ -7,6 +7,7 @@ from sprint_planning_automator.goal_generation import (
     GoalGenerationError,
     build_prompt,
     generate_sprint_goal,
+    generate_template_goal,
 )
 from sprint_planning_automator.models import Card, Team
 
@@ -127,3 +128,61 @@ def test_api_error_during_create_raises_goal_generation_error(monkeypatch, team_
 
     with pytest.raises(GoalGenerationError):
         generate_sprint_goal(team, cards)
+
+
+def test_template_goal_with_no_cards():
+    assert generate_template_goal([]) == "No cards committed to this sprint yet."
+
+
+def test_template_goal_with_one_card():
+    cards = [Card("C-1", "t1", None, "Add SSO login", "high", 8, "in_progress")]
+    assert generate_template_goal(cards) == "This sprint focuses on: Add SSO login."
+
+
+def test_template_goal_with_two_cards():
+    cards = [
+        Card("C-1", "t1", None, "Add SSO login", "high", 8, "in_progress"),
+        Card("C-2", "t1", None, "Refactor settings API", "medium", 5, "sprint_ready"),
+    ]
+    assert (
+        generate_template_goal(cards)
+        == "This sprint focuses on: Add SSO login and Refactor settings API."
+    )
+
+
+def test_template_goal_with_three_plus_cards_mentions_remaining_count():
+    cards = [
+        Card("C-1", "t1", None, "Low priority card", "low", 3, "sprint_ready"),
+        Card("C-2", "t1", None, "High priority card", "high", 8, "in_progress"),
+        Card("C-3", "t1", None, "Medium priority card", "medium", 5, "sprint_ready"),
+    ]
+    goal = generate_template_goal(cards)
+    # Priority order (high -> medium -> low), not original list order.
+    assert goal == (
+        "This sprint focuses on: High priority card and Medium priority card "
+        "(plus 1 more card)."
+    )
+
+
+def test_template_goal_pluralizes_remaining_count():
+    cards = [
+        Card("C-1", "t1", None, "First", "high", 3, "sprint_ready"),
+        Card("C-2", "t1", None, "Second", "high", 3, "sprint_ready"),
+        Card("C-3", "t1", None, "Third", "low", 3, "sprint_ready"),
+        Card("C-4", "t1", None, "Fourth", "low", 3, "sprint_ready"),
+    ]
+    goal = generate_template_goal(cards)
+    assert goal.endswith("(plus 2 more cards).")
+
+
+def test_template_goal_breaks_ties_by_original_order():
+    # Both high priority -- stable sort should keep C-1 before C-2, matching
+    # the same first-listed-wins tie-break rule used by backfill.
+    cards = [
+        Card("C-1", "t1", None, "First high", "high", 3, "sprint_ready"),
+        Card("C-2", "t1", None, "Second high", "high", 3, "sprint_ready"),
+    ]
+    assert (
+        generate_template_goal(cards)
+        == "This sprint focuses on: First high and Second high."
+    )
