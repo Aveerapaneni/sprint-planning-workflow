@@ -7,6 +7,7 @@ from pathlib import Path
 
 from .backfill import backfill_sprint
 from .data_loader import load_data
+from .goal_generation import GoalGenerationError, generate_sprint_goal
 from .models import Sprint, Team
 from .prompts import (
     prompt_card_to_add,
@@ -17,6 +18,7 @@ from .prompts import (
     prompt_sprint_dates,
 )
 from .proposal import (
+    DRAFT_GOAL_PLACEHOLDER,
     ProposalEditError,
     SprintProposal,
     add_card,
@@ -103,10 +105,30 @@ def run(data_path: Path | str = DEFAULT_DATA_PATH) -> None:
 
     processing_time = time.perf_counter() - processing_start
 
+    # US-6: generate an AI sprint goal per team, grounded in its selected cards.
+    # Timed separately from processing_time -- it's the only step that calls out
+    # to the Claude API, and the PRD calls it out as the main token-cost lever.
+    ai_start = time.perf_counter()
+    total_input_tokens = 0
+    total_output_tokens = 0
+    draft_goals: dict[str, str] = {}
+    for team, closed_sprint, result, pool, velocity_adjustment in plans:
+        try:
+            gen = generate_sprint_goal(team, result.selected_cards)
+            draft_goals[team.team_id] = gen.goal
+            total_input_tokens += gen.input_tokens
+            total_output_tokens += gen.output_tokens
+        except GoalGenerationError as exc:
+            print(f"Could not generate AI sprint goal for {team.team_name}: {exc}")
+            print("  Falling back to placeholder goal.\n")
+            draft_goals[team.team_id] = DRAFT_GOAL_PLACEHOLDER
+    ai_generation_time = time.perf_counter() - ai_start
+
     # US-4 & US-5: present each team's proposal, allow PO edits, require confirmation.
     finalized, declined = [], []
     for team, closed_sprint, result, pool, velocity_adjustment in plans:
         proposal = build_initial_proposal(team, result, pool)
+        proposal.sprint_goal = draft_goals.get(team.team_id, DRAFT_GOAL_PLACEHOLDER)
         confirmed = _review_and_confirm(team, proposal, velocity_adjustment)
 
         if confirmed:
@@ -135,6 +157,10 @@ def run(data_path: Path | str = DEFAULT_DATA_PATH) -> None:
     print(f"Finalized: {finalized or 'none'}")
     print(f"Declined:  {declined or 'none'}")
     print(f"Processing time (excluding PO input): {processing_time:.3f}s")
+    print(
+        f"AI sprint-goal generation time: {ai_generation_time:.3f}s "
+        f"({total_input_tokens} input / {total_output_tokens} output tokens)"
+    )
 
 
 def main() -> None:

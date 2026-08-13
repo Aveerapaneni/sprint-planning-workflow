@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from sprint_planning_automator.cli import run
+from sprint_planning_automator.goal_generation import GoalGenerationResult
 
 MOCK_DATA_PATH = Path(__file__).resolve().parents[1] / "data" / "mock_jira_data.json"
 
@@ -58,6 +59,42 @@ def test_invalid_date_order_reprompts(monkeypatch, capsys):
     assert "End date must be after start date" in out
     assert "Could not parse" in out
     assert "New sprint window: 2026-08-25 -> 2026-09-08" in out
+
+
+def test_ai_goal_generation_falls_back_without_api_key(monkeypatch, capsys):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    responses = ["2026-08-25", "2026-09-08", "c", "c", "c"]
+    monkeypatch.setattr("builtins.input", _fake_input(responses))
+
+    run(MOCK_DATA_PATH)
+
+    out = capsys.readouterr().out
+    assert "Falling back to placeholder goal." in out
+    assert "AI sprint-goal generation time:" in out
+    # No credentials -> no tokens spent.
+    assert "0 input / 0 output tokens" in out
+    # The run still completes and finalizes normally despite the AI failure.
+    assert "Finalized: ['Team Alpha', 'Team Bravo', 'Team Charlie']" in out
+
+
+def test_ai_generated_goal_is_used_when_generation_succeeds(monkeypatch, capsys):
+    def fake_generate(team, cards):
+        return GoalGenerationResult(
+            goal=f"AI goal for {team.team_name}", input_tokens=10, output_tokens=5
+        )
+
+    monkeypatch.setattr("sprint_planning_automator.cli.generate_sprint_goal", fake_generate)
+    responses = ["2026-08-25", "2026-09-08", "c", "c", "c"]
+    monkeypatch.setattr("builtins.input", _fake_input(responses))
+
+    run(MOCK_DATA_PATH)
+
+    out = capsys.readouterr().out
+    assert "AI goal for Team Alpha" in out
+    assert "AI goal for Team Bravo" in out
+    assert "AI goal for Team Charlie" in out
+    assert "30 input / 15 output tokens" in out  # 3 teams x (10 in, 5 out)
+    assert "Falling back to placeholder goal." not in out
 
 
 def test_processing_completes_within_ten_seconds(monkeypatch, capsys):
