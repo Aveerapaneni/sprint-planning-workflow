@@ -9,6 +9,8 @@ from pathlib import Path
 from .models import Card, Sprint, Team
 from .velocity import Resource
 
+DEFAULT_DATA_PATH = Path(__file__).resolve().parents[2] / "data" / "mock_jira_data.json"
+
 
 class DataValidationError(Exception):
     """Raised when the mock dataset is missing required fields or references."""

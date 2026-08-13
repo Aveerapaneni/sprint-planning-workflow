@@ -15,11 +15,11 @@ def _fake_input(responses):
     return _input
 
 
-def test_end_to_end_run_all_confirmed(monkeypatch, capsys):
+def test_end_to_end_run_all_confirmed(monkeypatch, capsys, tmp_path):
     responses = ["2026-08-25", "2026-09-08", "c", "c", "c"]
     monkeypatch.setattr("builtins.input", _fake_input(responses))
 
-    run(MOCK_DATA_PATH)
+    run(MOCK_DATA_PATH, tmp_path / "active_sprints_state.json")
 
     out = capsys.readouterr().out
     assert "Finalized: ['Team Alpha', 'Team Bravo', 'Team Charlie']" in out
@@ -27,18 +27,18 @@ def test_end_to_end_run_all_confirmed(monkeypatch, capsys):
     assert "Processing time (excluding PO input):" in out
 
 
-def test_end_to_end_run_mixed_confirmation(monkeypatch, capsys):
+def test_end_to_end_run_mixed_confirmation(monkeypatch, capsys, tmp_path):
     responses = ["2026-08-25", "2026-09-08", "c", "n", "c"]
     monkeypatch.setattr("builtins.input", _fake_input(responses))
 
-    run(MOCK_DATA_PATH)
+    run(MOCK_DATA_PATH, tmp_path / "active_sprints_state.json")
 
     out = capsys.readouterr().out
     assert "Finalized: ['Team Alpha', 'Team Charlie']" in out
     assert "Declined:  ['Team Bravo']" in out
 
 
-def test_invalid_date_order_reprompts(monkeypatch, capsys):
+def test_invalid_date_order_reprompts(monkeypatch, capsys, tmp_path):
     # Each rejection re-prompts for BOTH start and end, so every retry supplies a full pair.
     responses = [
         "2026-09-08",
@@ -53,7 +53,7 @@ def test_invalid_date_order_reprompts(monkeypatch, capsys):
     ]
     monkeypatch.setattr("builtins.input", _fake_input(responses))
 
-    run(MOCK_DATA_PATH)
+    run(MOCK_DATA_PATH, tmp_path / "active_sprints_state.json")
 
     out = capsys.readouterr().out
     assert "End date must be after start date" in out
@@ -61,12 +61,12 @@ def test_invalid_date_order_reprompts(monkeypatch, capsys):
     assert "New sprint window: 2026-08-25 -> 2026-09-08" in out
 
 
-def test_ai_goal_generation_falls_back_without_api_key(monkeypatch, capsys):
+def test_ai_goal_generation_falls_back_without_api_key(monkeypatch, capsys, tmp_path):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     responses = ["2026-08-25", "2026-09-08", "c", "c", "c"]
     monkeypatch.setattr("builtins.input", _fake_input(responses))
 
-    run(MOCK_DATA_PATH)
+    run(MOCK_DATA_PATH, tmp_path / "active_sprints_state.json")
 
     out = capsys.readouterr().out
     assert "Falling back to placeholder goal." in out
@@ -77,7 +77,7 @@ def test_ai_goal_generation_falls_back_without_api_key(monkeypatch, capsys):
     assert "Finalized: ['Team Alpha', 'Team Bravo', 'Team Charlie']" in out
 
 
-def test_ai_generated_goal_is_used_when_generation_succeeds(monkeypatch, capsys):
+def test_ai_generated_goal_is_used_when_generation_succeeds(monkeypatch, capsys, tmp_path):
     def fake_generate(team, cards):
         return GoalGenerationResult(
             goal=f"AI goal for {team.team_name}", input_tokens=10, output_tokens=5
@@ -87,7 +87,7 @@ def test_ai_generated_goal_is_used_when_generation_succeeds(monkeypatch, capsys)
     responses = ["2026-08-25", "2026-09-08", "c", "c", "c"]
     monkeypatch.setattr("builtins.input", _fake_input(responses))
 
-    run(MOCK_DATA_PATH)
+    run(MOCK_DATA_PATH, tmp_path / "active_sprints_state.json")
 
     out = capsys.readouterr().out
     assert "AI goal for Team Alpha" in out
@@ -97,11 +97,11 @@ def test_ai_generated_goal_is_used_when_generation_succeeds(monkeypatch, capsys)
     assert "Falling back to placeholder goal." not in out
 
 
-def test_processing_completes_within_ten_seconds(monkeypatch, capsys):
+def test_processing_completes_within_ten_seconds(monkeypatch, capsys, tmp_path):
     responses = ["2026-08-25", "2026-09-08", "c", "c", "c"]
     monkeypatch.setattr("builtins.input", _fake_input(responses))
 
-    run(MOCK_DATA_PATH)
+    run(MOCK_DATA_PATH, tmp_path / "active_sprints_state.json")
 
     out = capsys.readouterr().out
     line = next(l for l in out.splitlines() if l.startswith("Processing time"))
@@ -109,7 +109,7 @@ def test_processing_completes_within_ten_seconds(monkeypatch, capsys):
     assert seconds < 10
 
 
-def test_edit_swap_card_and_goal_reflected_in_confirmation(monkeypatch, capsys):
+def test_edit_swap_card_and_goal_reflected_in_confirmation(monkeypatch, capsys, tmp_path):
     # Team Alpha: edit -> remove ALPHA-204, add nothing back (shrink), edit goal, done, confirm.
     # Team Bravo, Charlie: confirm as-is.
     responses = [
@@ -127,7 +127,7 @@ def test_edit_swap_card_and_goal_reflected_in_confirmation(monkeypatch, capsys):
     ]
     monkeypatch.setattr("builtins.input", _fake_input(responses))
 
-    run(MOCK_DATA_PATH)
+    run(MOCK_DATA_PATH, tmp_path / "active_sprints_state.json")
 
     out = capsys.readouterr().out
     assert "Removed ALPHA-204." in out
@@ -138,7 +138,7 @@ def test_edit_swap_card_and_goal_reflected_in_confirmation(monkeypatch, capsys):
     assert "Finalized: ['Team Alpha', 'Team Bravo', 'Team Charlie']" in out
 
 
-def test_edit_remove_then_add_card_back_reflected_in_totals(monkeypatch, capsys):
+def test_edit_remove_then_add_card_back_reflected_in_totals(monkeypatch, capsys, tmp_path):
     # Alpha's adjusted velocity is 24 (1 of 4 engineers OOO), so the initial proposal
     # only fits ALPHA-204 (13 rollover + 8 = 21); ALPHA-205 doesn't fit and is left
     # available. Remove ALPHA-204, see the reduced total, then add it back via the
@@ -159,7 +159,7 @@ def test_edit_remove_then_add_card_back_reflected_in_totals(monkeypatch, capsys)
     ]
     monkeypatch.setattr("builtins.input", _fake_input(responses))
 
-    run(MOCK_DATA_PATH)
+    run(MOCK_DATA_PATH, tmp_path / "active_sprints_state.json")
 
     out = capsys.readouterr().out
     assert "Removed ALPHA-204." in out

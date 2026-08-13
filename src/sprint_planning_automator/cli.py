@@ -1,4 +1,5 @@
-"""Orchestrates US-1 through US-5 into one end-to-end run."""
+"""Orchestrates US-1 through US-7 into one end-to-end "new sprint" run, plus
+the top-level menu that also offers the US-8 mid-sprint edit mode."""
 
 from __future__ import annotations
 
@@ -6,8 +7,9 @@ import time
 from pathlib import Path
 
 from .backfill import backfill_sprint
-from .data_loader import load_data
+from .data_loader import DEFAULT_DATA_PATH, load_data
 from .goal_generation import GoalGenerationError, generate_sprint_goal
+from .mid_sprint_edit import run_edit_mode
 from .models import Sprint, Team
 from .prompts import (
     prompt_card_to_add,
@@ -16,6 +18,7 @@ from .prompts import (
     prompt_new_goal,
     prompt_review_action,
     prompt_sprint_dates,
+    prompt_top_level_menu,
 )
 from .proposal import (
     DRAFT_GOAL_PLACEHOLDER,
@@ -27,10 +30,9 @@ from .proposal import (
     set_sprint_goal,
 )
 from .sprint_close import SprintCloseError, close_sprint_and_get_rollover
+from .state_store import DEFAULT_STATE_PATH, ActiveSprintState, load_active_sprints, save_active_sprints
 from .summary import build_team_summary
 from .velocity import VelocityAdjustment, compute_adjusted_velocity
-
-DEFAULT_DATA_PATH = Path(__file__).resolve().parents[2] / "data" / "mock_jira_data.json"
 
 
 def _run_edit_loop(proposal: SprintProposal) -> None:
@@ -73,7 +75,10 @@ def _review_and_confirm(
         _run_edit_loop(proposal)
 
 
-def run(data_path: Path | str = DEFAULT_DATA_PATH) -> None:
+def run(
+    data_path: Path | str = DEFAULT_DATA_PATH,
+    state_path: Path | str = DEFAULT_STATE_PATH,
+) -> None:
     print("Sprint Planning Automator\n" + "=" * 40)
 
     # US-1: sprint window for the new sprint (not timed against the NFR budget,
@@ -83,6 +88,7 @@ def run(data_path: Path | str = DEFAULT_DATA_PATH) -> None:
 
     processing_start = time.perf_counter()
     data = load_data(data_path)
+    active_states = load_active_sprints(state_path)
 
     plans = []
     for team in data.teams:
@@ -144,6 +150,22 @@ def run(data_path: Path | str = DEFAULT_DATA_PATH) -> None:
             for card in proposal.selected_cards:
                 card.sprint_id = new_sprint_id
             data.sprints.append(new_sprint)
+
+            # US-8: persist this as the team's active sprint so it can be
+            # edited mid-cycle in a later run via the "edit" menu option.
+            active_states[team.team_id] = ActiveSprintState(
+                team_id=team.team_id,
+                team_name=team.team_name,
+                sprint_id=new_sprint_id,
+                start_date=start_date.isoformat(),
+                end_date=end_date.isoformat(),
+                sprint_goal=proposal.sprint_goal,
+                baseline_velocity=velocity_adjustment.baseline_velocity,
+                adjusted_velocity=velocity_adjustment.adjusted_velocity,
+                cards=list(proposal.selected_cards),
+            )
+            save_active_sprints(active_states, state_path)
+
             finalized.append(team.team_name)
             print(f"-> {team.team_name}: sprint finalized as {new_sprint_id}.\n")
         else:
@@ -164,4 +186,8 @@ def run(data_path: Path | str = DEFAULT_DATA_PATH) -> None:
 
 
 def main() -> None:
-    run()
+    action = prompt_top_level_menu()
+    if action == "new":
+        run()
+    else:
+        run_edit_mode()

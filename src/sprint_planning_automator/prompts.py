@@ -1,5 +1,5 @@
-"""US-1, US-4 & US-5: interactive terminal input for sprint dates, PO review/edit,
-and PO confirmation."""
+"""US-1, US-4, US-5 & US-8: interactive terminal input for sprint dates, PO
+review/edit, PO confirmation, and mid-sprint editing."""
 
 from __future__ import annotations
 
@@ -117,4 +117,58 @@ def prompt_card_to_remove(added_cards: list[Card]) -> str | None:
 def prompt_new_goal(current_goal: str) -> str | None:
     print(f"  Current draft goal: {current_goal}")
     raw = input("  Enter new sprint goal (blank to cancel): ").strip()
+    return raw or None
+
+
+def prompt_top_level_menu() -> str:
+    """Entry-point menu. Returns 'new' or 'edit'."""
+    while True:
+        raw = input("[n]ew sprint cycle / [e]dit an active sprint: ").strip().lower()
+        if raw in ("n", "new"):
+            return "new"
+        if raw in ("e", "edit"):
+            return "edit"
+        print("  Please enter 'n' or 'e'.")
+
+
+def prompt_team_choice(team_names: list[str]) -> int | None:
+    """Numbered team picker. Returns the chosen index, or None to exit."""
+    if not team_names:
+        return None
+
+    print("Teams with an active sprint:")
+    for i, name in enumerate(team_names, start=1):
+        print(f"  [{i}] {name}")
+
+    raw = input("Select a team by number (blank to exit): ").strip()
+    if not raw:
+        return None
+    try:
+        index = int(raw)
+    except ValueError:
+        print(f"  {raw!r} is not a number.")
+        return None
+    if not (1 <= index <= len(team_names)):
+        print(f"  {index} is out of range.")
+        return None
+    return index - 1
+
+
+def prompt_mid_sprint_edit_action() -> str:
+    """Mid-sprint edit sub-menu. Returns 'add', 'remove', or 'done'."""
+    while True:
+        raw = input(
+            "\n[a]dd a card / [r]emove a card / [d]one editing this team: "
+        ).strip().lower()
+        if raw in ("a", "add"):
+            return "add"
+        if raw in ("r", "remove"):
+            return "remove"
+        if raw in ("d", "done"):
+            return "done"
+        print("  Please enter 'a', 'r', or 'd'.")
+
+
+def prompt_edit_reason(action: str, card_id: str) -> str | None:
+    raw = input(f"  Reason for {action}ing {card_id} (required, blank to cancel): ").strip()
     return raw or None
