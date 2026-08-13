@@ -1,5 +1,7 @@
 # Sprint Planning Automator
 
+Automating the Sprint Planning ceremony for PO and Program Manager review, without a formal team meeting.
+
 A CLI tool that automates the mechanical parts of sprint planning across
 multiple teams — closing the old sprint, flagging rollover work, backfilling
 the new sprint from a groomed backlog up to team velocity, and getting
