@@ -4,10 +4,7 @@ from __future__ import annotations
 
 from .backfill import BackfillResult
 from .models import Card, Team
-
-DRAFT_GOAL_PLACEHOLDER = (
-    "[Draft goal placeholder — AI-generated sprint goal is not yet implemented (US-6)]"
-)
+from .proposal import DRAFT_GOAL_PLACEHOLDER
 
 
 def _format_card(card: Card, tag: str) -> str:
@@ -43,6 +40,11 @@ def build_team_summary(
         lines.append(
             "WARNING: rollover cards alone exceed team velocity — "
             "no Sprint Ready cards could be added this cycle."
+        )
+    elif getattr(result, "over_velocity", False):
+        lines.append(
+            "WARNING: manual edits have pushed this proposal over team velocity — "
+            "review before confirming."
         )
     if result.capacity_unfilled:
         lines.append(

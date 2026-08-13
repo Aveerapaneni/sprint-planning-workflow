@@ -1,4 +1,4 @@
-"""Orchestrates US-1 through US-4 into one end-to-end run."""
+"""Orchestrates US-1 through US-5 into one end-to-end run."""
 
 from __future__ import annotations
 
@@ -7,12 +7,65 @@ from pathlib import Path
 
 from .backfill import backfill_sprint
 from .data_loader import load_data
-from .models import Sprint
-from .prompts import prompt_sprint_dates, prompt_yes_no
+from .models import Sprint, Team
+from .prompts import (
+    prompt_card_to_add,
+    prompt_card_to_remove,
+    prompt_edit_action,
+    prompt_new_goal,
+    prompt_review_action,
+    prompt_sprint_dates,
+)
+from .proposal import (
+    ProposalEditError,
+    SprintProposal,
+    add_card,
+    build_initial_proposal,
+    remove_card,
+    set_sprint_goal,
+)
 from .sprint_close import SprintCloseError, close_sprint_and_get_rollover
-from .summary import DRAFT_GOAL_PLACEHOLDER, build_team_summary
+from .summary import build_team_summary
 
 DEFAULT_DATA_PATH = Path(__file__).resolve().parents[2] / "data" / "mock_jira_data.json"
+
+
+def _run_edit_loop(proposal: SprintProposal) -> None:
+    while True:
+        action = prompt_edit_action()
+        if action == "done":
+            return
+
+        try:
+            if action == "goal":
+                new_goal = prompt_new_goal(proposal.sprint_goal)
+                if new_goal is not None:
+                    set_sprint_goal(proposal, new_goal)
+                    print("  Sprint goal updated.")
+            elif action == "add":
+                card_id = prompt_card_to_add(proposal.available_cards)
+                if card_id is not None:
+                    card = add_card(proposal, card_id)
+                    print(f"  Added {card.card_id}.")
+            elif action == "remove":
+                card_id = prompt_card_to_remove(proposal.added_cards)
+                if card_id is not None:
+                    card = remove_card(proposal, card_id)
+                    print(f"  Removed {card.card_id}.")
+        except ProposalEditError as exc:
+            print(f"  {exc}")
+
+
+def _review_and_confirm(team: Team, proposal: SprintProposal) -> bool:
+    """US-4 + US-5: show the proposal, let the PO edit it, then confirm or decline."""
+    while True:
+        print(build_team_summary(team, proposal, proposal.sprint_goal))
+        action = prompt_review_action()
+        if action == "confirm":
+            return True
+        if action == "decline":
+            return False
+        _run_edit_loop(proposal)
 
 
 def run(data_path: Path | str = DEFAULT_DATA_PATH) -> None:
@@ -38,15 +91,15 @@ def run(data_path: Path | str = DEFAULT_DATA_PATH) -> None:
 
         pool = [c for c in data.cards if c.team_id == team.team_id]
         result = backfill_sprint(rollover_cards, pool, team.velocity)
-        plans.append((team, closed_sprint, result))
+        plans.append((team, closed_sprint, result, pool))
 
     processing_time = time.perf_counter() - processing_start
 
-    # US-4: present each team's proposal and require explicit PO confirmation.
+    # US-4 & US-5: present each team's proposal, allow PO edits, require confirmation.
     finalized, declined = [], []
-    for team, closed_sprint, result in plans:
-        print(build_team_summary(team, result))
-        confirmed = prompt_yes_no(f"\nFinalize this sprint for {team.team_name}?")
+    for team, closed_sprint, result, pool in plans:
+        proposal = build_initial_proposal(team, result, pool)
+        confirmed = _review_and_confirm(team, proposal)
 
         if confirmed:
             new_sprint_id = f"{closed_sprint.sprint_id}_next"
@@ -56,9 +109,9 @@ def run(data_path: Path | str = DEFAULT_DATA_PATH) -> None:
                 status="active",
                 start_date=start_date.isoformat(),
                 end_date=end_date.isoformat(),
-                sprint_goal=DRAFT_GOAL_PLACEHOLDER,
+                sprint_goal=proposal.sprint_goal,
             )
-            for card in result.selected_cards:
+            for card in proposal.selected_cards:
                 card.sprint_id = new_sprint_id
             data.sprints.append(new_sprint)
             finalized.append(team.team_name)
