@@ -102,9 +102,11 @@ def test_edit_swap_card_and_goal_reflected_in_confirmation(monkeypatch, capsys):
 
 
 def test_edit_remove_then_add_card_back_reflected_in_totals(monkeypatch, capsys):
-    # Team Alpha: remove ALPHA-204 (8 pts), see the reduced total, then add it back
-    # via the 'add' path (it's the only available card once removed) and confirm
-    # the total is restored before finalizing.
+    # Alpha's adjusted velocity is 24 (1 of 4 engineers OOO), so the initial proposal
+    # only fits ALPHA-204 (13 rollover + 8 = 21); ALPHA-205 doesn't fit and is left
+    # available. Remove ALPHA-204, see the reduced total, then add it back via the
+    # 'add' path (it's listed first among available cards) and confirm the total is
+    # restored before finalizing.
     responses = [
         "2026-08-25",
         "2026-09-08",
@@ -112,7 +114,7 @@ def test_edit_remove_then_add_card_back_reflected_in_totals(monkeypatch, capsys)
         "r",
         "1",  # remove ALPHA-204
         "a",
-        "1",  # ALPHA-204 is now the only available card -> add it back
+        "1",  # ALPHA-204 is listed first among available cards -> add it back
         "d",
         "c",
         "c",
@@ -125,5 +127,5 @@ def test_edit_remove_then_add_card_back_reflected_in_totals(monkeypatch, capsys)
     out = capsys.readouterr().out
     assert "Removed ALPHA-204." in out
     assert "Added ALPHA-204." in out
-    # Total should be back to 26 (13 rollover + 8 + 5) before Alpha's final confirm.
-    assert "Total points: 26 / Velocity: 32" in out
+    # Total should be back to 21 (13 rollover + 8) against adjusted velocity 24.
+    assert "Total points: 21 / Velocity: 24" in out

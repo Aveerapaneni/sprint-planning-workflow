@@ -12,6 +12,19 @@ def test_loads_all_teams_sprints_and_cards():
     assert len(data.teams) == 3
     assert len(data.sprints) == 3
     assert len(data.cards) == 15
+    assert len(data.resources) == 12
+
+
+def test_each_team_has_four_engineers():
+    data = load_data(MOCK_DATA_PATH)
+    for team_id in ("team_alpha", "team_bravo", "team_charlie"):
+        assert sum(1 for r in data.resources if r.team_id == team_id) == 4
+
+
+def test_expected_engineers_are_ooo():
+    data = load_data(MOCK_DATA_PATH)
+    ooo_names = {r.engineer_name for r in data.resources if r.ooo_start}
+    assert ooo_names == {"Sam Rivera", "Quinn Barrett"}
 
 
 def test_team_ids_are_expected():

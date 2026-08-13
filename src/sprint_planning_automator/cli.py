@@ -26,6 +26,7 @@ from .proposal import (
 )
 from .sprint_close import SprintCloseError, close_sprint_and_get_rollover
 from .summary import build_team_summary
+from .velocity import VelocityAdjustment, compute_adjusted_velocity
 
 DEFAULT_DATA_PATH = Path(__file__).resolve().parents[2] / "data" / "mock_jira_data.json"
 
@@ -56,10 +57,12 @@ def _run_edit_loop(proposal: SprintProposal) -> None:
             print(f"  {exc}")
 
 
-def _review_and_confirm(team: Team, proposal: SprintProposal) -> bool:
+def _review_and_confirm(
+    team: Team, proposal: SprintProposal, velocity_adjustment: VelocityAdjustment
+) -> bool:
     """US-4 + US-5: show the proposal, let the PO edit it, then confirm or decline."""
     while True:
-        print(build_team_summary(team, proposal, proposal.sprint_goal))
+        print(build_team_summary(team, proposal, proposal.sprint_goal, velocity_adjustment))
         action = prompt_review_action()
         if action == "confirm":
             return True
@@ -89,17 +92,22 @@ def run(data_path: Path | str = DEFAULT_DATA_PATH) -> None:
             print(f"Skipping {team.team_name}: {exc}")
             continue
 
+        # US-7: adjust velocity for OOO engineers before backfilling.
+        velocity_adjustment = compute_adjusted_velocity(
+            team.team_id, team.velocity, data.resources, start_date, end_date
+        )
+
         pool = [c for c in data.cards if c.team_id == team.team_id]
-        result = backfill_sprint(rollover_cards, pool, team.velocity)
-        plans.append((team, closed_sprint, result, pool))
+        result = backfill_sprint(rollover_cards, pool, velocity_adjustment.adjusted_velocity)
+        plans.append((team, closed_sprint, result, pool, velocity_adjustment))
 
     processing_time = time.perf_counter() - processing_start
 
     # US-4 & US-5: present each team's proposal, allow PO edits, require confirmation.
     finalized, declined = [], []
-    for team, closed_sprint, result, pool in plans:
+    for team, closed_sprint, result, pool, velocity_adjustment in plans:
         proposal = build_initial_proposal(team, result, pool)
-        confirmed = _review_and_confirm(team, proposal)
+        confirmed = _review_and_confirm(team, proposal, velocity_adjustment)
 
         if confirmed:
             new_sprint_id = f"{closed_sprint.sprint_id}_next"

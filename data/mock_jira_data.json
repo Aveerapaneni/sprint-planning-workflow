@@ -65,5 +65,22 @@
     { "card_id": "CHAR-302", "team_id": "team_charlie", "sprint_id": "sprint_15", "title": "Deprecate legacy reporting job", "priority": "medium", "story_points": 5, "status": "done" },
     { "card_id": "CHAR-303", "team_id": "team_charlie", "sprint_id": null, "title": "Add export-to-CSV feature", "priority": "high", "story_points": 5, "status": "sprint_ready" },
     { "card_id": "CHAR-304", "team_id": "team_charlie", "sprint_id": null, "title": "Rebuild filters UI", "priority": "low", "story_points": 3, "status": "backlog" }
+  ],
+
+  "resources": [
+    { "team_id": "team_alpha", "engineer_name": "Alex Kim", "ooo_start": null, "ooo_end": null },
+    { "team_id": "team_alpha", "engineer_name": "Sam Rivera", "ooo_start": "2026-08-20", "ooo_end": "2026-09-01" },
+    { "team_id": "team_alpha", "engineer_name": "Jordan Lee", "ooo_start": null, "ooo_end": null },
+    { "team_id": "team_alpha", "engineer_name": "Taylor Chen", "ooo_start": null, "ooo_end": null },
+
+    { "team_id": "team_bravo", "engineer_name": "Morgan Diaz", "ooo_start": null, "ooo_end": null },
+    { "team_id": "team_bravo", "engineer_name": "Casey Wong", "ooo_start": null, "ooo_end": null },
+    { "team_id": "team_bravo", "engineer_name": "Riley Patel", "ooo_start": null, "ooo_end": null },
+    { "team_id": "team_bravo", "engineer_name": "Drew Alvarez", "ooo_start": null, "ooo_end": null },
+
+    { "team_id": "team_charlie", "engineer_name": "Jamie Foster", "ooo_start": null, "ooo_end": null },
+    { "team_id": "team_charlie", "engineer_name": "Quinn Barrett", "ooo_start": "2026-08-27", "ooo_end": "2026-09-05" },
+    { "team_id": "team_charlie", "engineer_name": "Avery Nolan", "ooo_start": null, "ooo_end": null },
+    { "team_id": "team_charlie", "engineer_name": "Skyler Munoz", "ooo_start": null, "ooo_end": null }
   ]
 }

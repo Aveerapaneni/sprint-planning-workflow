@@ -12,11 +12,10 @@ Full requirements: [`sprint-automator-PRD.md`](sprint-automator-PRD.md).
 
 ## Status
 
-This build covers **User Stories 1–5** of the PRD's 8. AI-generated sprint
-goals (US-6), OOO-adjusted velocity (US-7), and post-finalization edits
-(US-8) are not implemented yet — the sprint goal shown in the confirmation
-summary starts as a labeled placeholder (editable by the PO per US-5), and
-velocity shown is each team's baseline velocity.
+This build covers **User Stories 1–5 and 7** of the PRD's 8. AI-generated
+sprint goals (US-6) and post-finalization edits (US-8) are not implemented
+yet — the sprint goal shown in the confirmation summary starts as a labeled
+placeholder (editable by the PO per US-5).
 
 | Story | Description | Status |
 |---|---|---|
@@ -25,24 +24,31 @@ velocity shown is each team's baseline velocity.
 | US-3 | New sprint backfilled from Sprint Ready pile by priority, up to velocity | Done |
 | US-4 | Per-team summary + explicit PO yes/no confirmation | Done |
 | US-5 | PO can add/remove Sprint Ready cards and edit the draft goal before confirming | Done |
-| US-6–8 | AI sprint goal, OOO velocity adjustment, mid-sprint edits | Not yet built |
+| US-7 | Velocity adjusted for OOO engineers before backfilling | Done |
+| US-6, US-8 | AI sprint goal, mid-sprint edits | Not yet built |
 
 ## How it works
 
-1. **Load** `data/mock_jira_data.json` — 3 teams, their active sprints, and a
-   card pool per team.
+1. **Load** `data/mock_jira_data.json` — 3 teams, their active sprints, a
+   card pool per team, and a `resources` list of engineers with optional
+   OOO date ranges.
 2. **Close** each team's active sprint; any card not `status: "done"` in that
    sprint is tagged `is_rollover` and carried into the new sprint.
-3. **Backfill** the new sprint from that team's **Sprint Ready** cards only
+3. **Adjust velocity** — for each engineer OOO at any point during the new
+   sprint's window, the team loses their even 1/N share of baseline
+   velocity (headcount split), floored so capacity is never overestimated.
+   A team with no matching resource data falls back to full baseline
+   velocity, flagged rather than guessed.
+4. **Backfill** the new sprint from that team's **Sprint Ready** cards only
    (never raw, ungroomed `Backlog` cards), ordered high → medium → low
-   priority, stopping once velocity is reached. Ties within the same
-   priority go to whichever card is listed first. Cards missing a priority
-   or point estimate are never selected, regardless of status.
-4. **Summarize & review** — prints each team's proposed cards, draft goal,
-   and points-vs-velocity. The PO can `[c]`onfirm as-is, `[e]`dit — add or
-   remove Sprint Ready cards, or rewrite the draft goal, with the summary
-   re-shown after every edit — or `[n]` decline. A decline halts
-   finalization for that team only; the run continues for the others.
+   priority, stopping once the *adjusted* velocity is reached. Ties within
+   the same priority go to whichever card is listed first. Cards missing a
+   priority or point estimate are never selected, regardless of status.
+5. **Summarize & review** — prints each team's proposed cards, draft goal,
+   and points vs. baseline/adjusted velocity. The PO can `[c]`onfirm as-is,
+   `[e]`dit — add or remove Sprint Ready cards, or rewrite the draft goal,
+   with the summary re-shown after every edit — or `[n]` decline. A decline
+   halts finalization for that team only; the run continues for the others.
    Manual edits that push a team over velocity are flagged, not blocked —
    the PO retains final judgment.
 
@@ -53,6 +59,8 @@ Edge cases handled without crashing (PRD Section 7):
   cards are added that cycle.
 - A team with no active sprint to close → that team is skipped with a
   message instead of stopping the whole run.
+- Missing/incomplete OOO data for a team → falls back to full baseline
+  velocity, flagged in the summary rather than guessed.
 
 ## Project structure
 
@@ -66,6 +74,7 @@ sprint-planning-automator/
 │   ├── models.py                  # Team, Card, Sprint dataclasses
 │   ├── data_loader.py             # load + validate the JSON dataset
 │   ├── sprint_close.py            # US-2
+│   ├── velocity.py                # US-7 (OOO-adjusted velocity)
 │   ├── backfill.py                # US-3 (initial recommendation)
 │   ├── proposal.py                # US-5 (PO-editable proposal: add/remove/goal)
 │   ├── summary.py                 # US-4 (summary text)
@@ -74,6 +83,7 @@ sprint-planning-automator/
 └── tests/
     ├── test_data_loader.py
     ├── test_sprint_close.py
+    ├── test_velocity.py
     ├── test_backfill.py
     ├── test_proposal.py
     ├── test_summary.py
@@ -98,10 +108,11 @@ python3 -m pip install pytest
 python3 -m pytest -q
 ```
 
-41 tests cover data validation, rollover tagging, backfill priority/tie-break/
-edge-case logic, proposal add/remove/goal editing, summary content, and full
-end-to-end CLI runs (including input re-prompting on bad dates and the PO
-edit-then-confirm flow).
+52 tests cover data validation, rollover tagging, OOO velocity adjustment
+(even split, floor rounding, missing/incomplete data), backfill priority/
+tie-break/edge-case logic, proposal add/remove/goal editing, summary
+content, and full end-to-end CLI runs (including input re-prompting on bad
+dates and the PO edit-then-confirm flow).
 
 ## Performance
 

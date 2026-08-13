@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .models import Card, Sprint, Team
+from .velocity import Resource
 
 
 class DataValidationError(Exception):
@@ -18,6 +19,7 @@ class JiraData:
     teams: list[Team]
     sprints: list[Sprint]
     cards: list[Card]
+    resources: list[Resource]
 
 
 def load_data(path: str | Path) -> JiraData:
@@ -26,13 +28,16 @@ def load_data(path: str | Path) -> JiraData:
     teams = [Team(**t) for t in raw.get("teams", [])]
     sprints = [Sprint(**s) for s in raw.get("sprints", [])]
     cards = [Card(**c) for c in raw.get("cards", [])]
+    resources = [Resource(**r) for r in raw.get("resources", [])]
 
-    _validate(teams, sprints, cards)
+    _validate(teams, sprints, cards, resources)
 
-    return JiraData(teams=teams, sprints=sprints, cards=cards)
+    return JiraData(teams=teams, sprints=sprints, cards=cards, resources=resources)
 
 
-def _validate(teams: list[Team], sprints: list[Sprint], cards: list[Card]) -> None:
+def _validate(
+    teams: list[Team], sprints: list[Sprint], cards: list[Card], resources: list[Resource]
+) -> None:
     if not teams:
         raise DataValidationError("No teams found in dataset.")
 
@@ -54,4 +59,10 @@ def _validate(teams: list[Team], sprints: list[Sprint], cards: list[Card]) -> No
         if c.sprint_id is not None and c.sprint_id not in sprint_ids:
             raise DataValidationError(
                 f"Card {c.card_id!r} references unknown sprint_id {c.sprint_id!r}."
+            )
+
+    for r in resources:
+        if r.team_id not in team_ids:
+            raise DataValidationError(
+                f"Resource {r.engineer_name!r} references unknown team_id {r.team_id!r}."
             )
